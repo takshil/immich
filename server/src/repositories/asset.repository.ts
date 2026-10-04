@@ -7,7 +7,6 @@ import {
   type SelectQueryBuilder,
   type Selectable,
   type ShallowDehydrateObject,
-  UpdateResult,
   type Updateable,
   sql,
 } from 'kysely';
@@ -54,7 +53,6 @@ import {
   withTagId,
   withTags,
 } from 'src/utils/database.js';
-import { globToPostgresRegex } from 'src/utils/misc.js';
 
 export type AssetStats = Record<AssetType, number>;
 
@@ -1079,33 +1077,6 @@ export class AssetRepository {
       .deleteFrom('asset_file')
       .where('id', '=', anyUuid(files.map((file) => file.id)))
       .execute();
-  }
-
-  @GenerateSql({ params: [DummyValue.UUID, [DummyValue.STRING], [DummyValue.STRING]] })
-  async detectOfflineExternalAssets(
-    libraryId: string,
-    importPaths: string[],
-    exclusionPatterns: string[],
-  ): Promise<UpdateResult> {
-    const paths = importPaths.map((importPath) => `${importPath}%`);
-    const exclusions = exclusionPatterns.map((pattern) => globToPostgresRegex(pattern));
-
-    return this.db
-      .updateTable('asset')
-      .set({
-        isOffline: true,
-        deletedAt: new Date(),
-      })
-      .where('isOffline', '=', false)
-      .where('isExternal', '=', true)
-      .where('libraryId', '=', asUuid(libraryId))
-      .where((eb) =>
-        eb.or([
-          eb.not(eb.or(paths.map((path) => eb('originalPath', 'like', path)))),
-          eb.or(exclusions.map((pattern) => eb('originalPath', '~*', pattern))),
-        ]),
-      )
-      .executeTakeFirstOrThrow();
   }
 
   @GenerateSql({ params: [DummyValue.UUID, [DummyValue.STRING]] })

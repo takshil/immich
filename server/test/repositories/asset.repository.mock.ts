@@ -37,7 +37,6 @@ export const newAssetRepositoryMock = (): Mocked<RepositoryInterface<AssetReposi
     upsertFiles: vitest.fn(),
     deleteFile: vitest.fn(),
     deleteFiles: vitest.fn(),
-    detectOfflineExternalAssets: vitest.fn(),
     filterNewExternalAssetPaths: vitest.fn(),
     updateByLibraryId: vitest.fn(),
     getFileSamples: vitest.fn(),

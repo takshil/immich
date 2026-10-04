@@ -273,47 +273,62 @@ describe(LibraryService.name, () => {
   });
 
   describe('handleQueueSyncAssets', () => {
-    it('should call the offline check', async () => {
-      const library = factory.library();
+    it('should offline assets outside the import paths or covered by an exclusion pattern', async () => {
+      const library = factory.library({ importPaths: ['/import/'], exclusionPatterns: ['**/raw/**'] });
+      const online = AssetFactory.create({ libraryId: library.id, originalPath: '/import/photo.jpg' });
+      const outside = AssetFactory.create({ libraryId: library.id, originalPath: '/elsewhere/photo.jpg' });
+      const excluded = AssetFactory.create({ libraryId: library.id, originalPath: '/import/RAW/photo.jpg' });
 
       mocks.library.get.mockResolvedValue(library);
-      mocks.storage.walk.mockImplementation(async function* generator() {});
+      mocks.asset.getLibraryAssetCount.mockResolvedValue(3);
+      mocks.assetJob.streamForOfflineCheck.mockReturnValue(makeStream([online, outside, excluded]));
+      mocks.library.streamAssetIds.mockReturnValue(makeStream([online, outside, excluded]));
+
+      await expect(sut.handleQueueSyncAssets({ id: library.id })).resolves.toBe(JobStatus.Success);
+
+      expect(mocks.assetJob.streamForOfflineCheck).toHaveBeenCalledWith(library.id);
+      expect(mocks.asset.updateAll).toHaveBeenCalledOnce();
+      expect(mocks.asset.updateAll).toHaveBeenCalledWith([outside.id, excluded.id], {
+        isOffline: true,
+        deletedAt: expect.any(Date),
+      });
+    });
+
+    it('should not queue asset sync when every asset was offlined', async () => {
+      const library = factory.library({ importPaths: ['/import/'] });
+      const asset = AssetFactory.create({ libraryId: library.id, originalPath: '/elsewhere/photo.jpg' });
+
+      mocks.library.get.mockResolvedValue(library);
       mocks.asset.getLibraryAssetCount.mockResolvedValue(1);
-      mocks.asset.detectOfflineExternalAssets.mockResolvedValue({ numUpdatedRows: 1n });
+      mocks.assetJob.streamForOfflineCheck.mockReturnValue(makeStream([asset]));
 
-      const response = await sut.handleQueueSyncAssets({ id: library.id });
+      await expect(sut.handleQueueSyncAssets({ id: library.id })).resolves.toBe(JobStatus.Success);
 
-      expect(response).toBe(JobStatus.Success);
-      expect(mocks.asset.detectOfflineExternalAssets).toHaveBeenCalledWith(
-        library.id,
-        library.importPaths,
-        library.exclusionPatterns,
-      );
+      expect(mocks.asset.updateAll).toHaveBeenCalledWith([asset.id], { isOffline: true, deletedAt: expect.any(Date) });
+      expect(mocks.library.streamAssetIds).not.toHaveBeenCalled();
+      expect(mocks.job.queue).not.toHaveBeenCalled();
     });
 
     it('should skip an empty library', async () => {
       const library = factory.library();
 
       mocks.library.get.mockResolvedValue(library);
-      mocks.storage.walk.mockImplementation(async function* generator() {});
       mocks.asset.getLibraryAssetCount.mockResolvedValue(0);
-      mocks.asset.detectOfflineExternalAssets.mockResolvedValue({ numUpdatedRows: 1n });
 
       const response = await sut.handleQueueSyncAssets({ id: library.id });
 
       expect(response).toBe(JobStatus.Success);
-      expect(mocks.asset.detectOfflineExternalAssets).not.toHaveBeenCalled();
+      expect(mocks.assetJob.streamForOfflineCheck).not.toHaveBeenCalled();
     });
 
     it('should queue asset sync', async () => {
       const library = factory.library({ importPaths: ['/foo', '/bar'] });
-      const asset = AssetFactory.create({ libraryId: library.id, isExternal: true });
+      const asset = AssetFactory.create({ libraryId: library.id, originalPath: '/foo/photo.jpg', isExternal: true });
 
       mocks.library.get.mockResolvedValue(library);
-      mocks.storage.walk.mockImplementation(async function* generator() {});
+      mocks.assetJob.streamForOfflineCheck.mockReturnValue(makeStream([asset]));
       mocks.library.streamAssetIds.mockReturnValue(makeStream([asset]));
       mocks.asset.getLibraryAssetCount.mockResolvedValue(1);
-      mocks.asset.detectOfflineExternalAssets.mockResolvedValue({ numUpdatedRows: 0n });
 
       const response = await sut.handleQueueSyncAssets({ id: library.id });
 
@@ -330,11 +345,7 @@ describe(LibraryService.name, () => {
       });
 
       expect(response).toBe(JobStatus.Success);
-      expect(mocks.asset.detectOfflineExternalAssets).toHaveBeenCalledWith(
-        library.id,
-        library.importPaths,
-        library.exclusionPatterns,
-      );
+      expect(mocks.asset.updateAll).not.toHaveBeenCalled();
     });
 
     it("should fail if library can't be found", async () => {

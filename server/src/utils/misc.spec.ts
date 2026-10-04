@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getKeysDeep, globToPostgresRegex, unsetDeep } from 'src/utils/misc.js';
+import { createLibraryMatcher, getKeysDeep, unsetDeep } from 'src/utils/misc.js';
 
 describe('getKeysDeep', () => {
   it('should handle an empty object', () => {
@@ -52,26 +52,43 @@ describe('unsetDeep', () => {
   });
 });
 
-const matches = (glob: string, value: string) => new RegExp(globToPostgresRegex(glob)).test(value);
+describe('createLibraryMatcher', () => {
+  it.each([
+    { path: '/photos/a.jpg', importPaths: ['/photos/'], isInLibrary: true },
+    { path: '/other/a.jpg', importPaths: ['/photos/'], isInLibrary: false },
+    { path: '/other/a.jpg', importPaths: ['/photos/', '/other/'], isInLibrary: true },
+    // unlike SQL `LIKE`, `_` and `%` are literal
+    { path: '/photosX2020/a.jpg', importPaths: ['/photos_2020/'], isInLibrary: false },
+    { path: '/photos/2020/a.jpg', importPaths: ['/photos%/'], isInLibrary: false },
+  ])(
+    'should report $path as in library: $isInLibrary, with import paths $importPaths',
+    ({ path, importPaths, isInLibrary }) => {
+      expect(createLibraryMatcher({ importPaths, exclusionPatterns: [] })(path)).toBe(isInLibrary);
+    },
+  );
 
-describe('globToPostgresRegex', () => {
-  const testCases: [string, string, boolean][] = [
-    ['**/Raw/**', '/foo/Raw/bar.jpg', true],
-    ['**/Raw/**', '/foo/bar.jpg', false],
-    ['**/abc/*.tif', '/foo/abc/scan.tif', true],
-    ['**/abc/*.tif', '/foo/abc/sub/scan.tif', false],
-    ['**/*.tif', '/foo/bar.tif', true],
-    ['**/*.jp?', '/foo/bar.jpg', true],
-    ['**/@eaDir/**', '/foo/@eaDir/thumb.jpg', true],
-    ['**/._*', '/foo/._resource', true],
-    ['/absolute/path/**', '/absolute/path/photo.jpg', true],
-    ['/absolute/path/**', '/other/path/photo.jpg', false],
-    // a bare `*` must not cross a path separator, unlike SQL `LIKE`'s `%`
-    ['/path/*.*', '/path/photo.jpg', true],
-    ['/path/*.*', '/path/2020/photo.jpg', false],
-  ];
-
-  it.each(testCases)('should match %s against %s as %s', (glob, value, expected) => {
-    expect(matches(glob, value)).toEqual(expected);
-  });
+  it.each([
+    { pattern: '**/Raw/**', path: '/photos/Raw/bar.jpg', isInLibrary: false },
+    { pattern: '**/Raw/**', path: '/photos/bar.jpg', isInLibrary: true },
+    { pattern: '**/raw/**', path: '/photos/RAW/bar.jpg', isInLibrary: false },
+    { pattern: '**/abc/*.tif', path: '/photos/abc/scan.tif', isInLibrary: false },
+    { pattern: '**/abc/*.tif', path: '/photos/abc/sub/scan.tif', isInLibrary: true },
+    { pattern: '**/*.jp?', path: '/photos/bar.jpg', isInLibrary: false },
+    { pattern: '**/*.ARW', path: '/photos/bar.arw', isInLibrary: false },
+    { pattern: '**/@eaDir/**', path: '/photos/@eaDir/thumb.jpg', isInLibrary: false },
+    { pattern: '**/._*', path: '/photos/._resource', isInLibrary: false },
+    // a bare `*` must not cross a path separator
+    { pattern: '/photos/*.*', path: '/photos/photo.jpg', isInLibrary: false },
+    { pattern: '/photos/*.*', path: '/photos/2020/photo.jpg', isInLibrary: true },
+    // Postgres regexes disagreed with picomatch on these, or rejected them
+    { pattern: '**/İstanbul/**', path: '/photos/istanbul/a.jpg', isInLibrary: true },
+    { pattern: '**/ΚΎΠΡΟΣ/**', path: '/photos/Κύπρος/a.jpg', isInLibrary: false },
+    { pattern: String.raw`**/a\y/**`, path: '/photos/a/b.jpg', isInLibrary: true },
+    { pattern: String.raw`**/a\k/**`, path: '/photos/ak/b.jpg', isInLibrary: false },
+  ])(
+    'should report $path as in library: $isInLibrary, with exclusion pattern $pattern',
+    ({ pattern, path, isInLibrary }) => {
+      expect(createLibraryMatcher({ importPaths: ['/photos/'], exclusionPatterns: [pattern] })(path)).toBe(isInLibrary);
+    },
+  );
 });

@@ -276,6 +276,17 @@ export class AssetJobRepository {
       .execute();
   }
 
+  @GenerateSql({ params: [DummyValue.UUID], stream: true })
+  streamForOfflineCheck(libraryId: string) {
+    return this.db
+      .selectFrom('asset')
+      .select(['asset.id', 'asset.originalPath'])
+      .where('asset.libraryId', '=', asUuid(libraryId))
+      .where('asset.isOffline', '=', false)
+      .where('asset.isExternal', '=', true)
+      .stream();
+  }
+
   @GenerateSql({ params: [DummyValue.UUID] })
   getForAssetDeletion(id: string) {
     return this.db

@@ -521,6 +521,17 @@ from
 where
   "asset"."id" = any ($1::uuid[])
 
+-- AssetJobRepository.streamForOfflineCheck
+select
+  "asset"."id",
+  "asset"."originalPath"
+from
+  "asset"
+where
+  "asset"."libraryId" = $1::uuid
+  and "asset"."isOffline" = $2
+  and "asset"."isExternal" = $3
+
 -- AssetJobRepository.getForAssetDeletion
 select
   "asset"."id",

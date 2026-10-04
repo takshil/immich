@@ -591,6 +591,44 @@ describe(LibraryService.name, () => {
       await ctx.scan(library.id);
       await expect(ctx.getAssetPaths(library.id)).resolves.toEqual([asset1]);
     });
+
+    // Postgres case folding disagreed with picomatch on these: `İ` folds to `i`, but `Σ` does not fold to `ς`
+    it.each([
+      { pattern: '**/İstanbul/**', folder: 'istanbul', isExcluded: false },
+      { pattern: '**/ΚΎΠΡΟΣ/**', folder: 'Κύπρος', isExcluded: true },
+    ])('should apply $pattern to $folder the same way on every scan', async ({ pattern, folder, isExcluded }) => {
+      const { sut, ctx } = setup();
+
+      const asset = await createFile(join(importRoot, folder, 'asset.png'));
+      const library = await ctx.createLibrary({ importPaths: [importRoot] });
+
+      await ctx.scan(library.id);
+      await sut.update(library.id, { exclusionPatterns: [pattern] });
+
+      const expected = isExcluded ? [] : [asset];
+      await ctx.scan(library.id);
+      await expect(ctx.getAssetPaths(library.id)).resolves.toEqual(expected);
+      await ctx.scan(library.id);
+      await expect(ctx.getAssetPaths(library.id)).resolves.toEqual(expected);
+    });
+
+    it('should offline a missing asset when an exclusion pattern is not a valid Postgres regex', async () => {
+      const { ctx } = setup();
+
+      const kept = await createFile(join(importPath, 'kept.png'));
+      const missing = await createFile(join(importPath, 'missing.png'));
+      const library = await ctx.createLibrary({
+        importPaths: [importPath],
+        exclusionPatterns: [String.raw`**/a\k/**`],
+      });
+
+      await ctx.scan(library.id);
+      await expect(ctx.getAssetPaths(library.id)).resolves.toEqual([kept, missing]);
+
+      await rm(missing);
+      await ctx.scan(library.id);
+      await expect(ctx.getAssetPaths(library.id)).resolves.toEqual([kept]);
+    });
   });
 
   describe('watch', () => {

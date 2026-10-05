@@ -61,6 +61,8 @@ jobs:
           ANDROID_KEY_PASSWORD: familystore
           ANDROID_STORE_PASSWORD: familystore
           FAMILY_SUITE_BUILD: "1"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=1g"
+          ORG_GRADLE_PROJECT_orgGradleJvmArgs: "-Xmx8g"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

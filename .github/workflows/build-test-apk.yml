@@ -44,6 +44,9 @@ jobs:
         run: mise run codegen
 
 
+      - name: Copy shared test keystore
+        run: cp "${{ github.workspace }}/keystores/family-test.keystore" android/key.jks
+
       - name: Build release APK signed with the shared test key
         working-directory: ./mobile
         run: flutter build apk --release

@@ -60,6 +60,7 @@ jobs:
           ALIAS: familytest
           ANDROID_KEY_PASSWORD: familystore
           ANDROID_STORE_PASSWORD: familystore
+          FAMILY_SUITE_BUILD: "1"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

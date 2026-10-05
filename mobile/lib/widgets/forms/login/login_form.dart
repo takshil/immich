@@ -15,7 +15,9 @@ import 'package:immich_mobile/entities/store.entity.dart';
 import 'package:immich_mobile/extensions/build_context_extensions.dart';
 import 'package:immich_mobile/generated/translations.g.dart';
 import 'package:immich_mobile/infrastructure/repositories/settings.repository.dart';
+import 'package:immich_mobile/platform/family_account_api.g.dart';
 import 'package:immich_mobile/providers/auth.provider.dart';
+import 'package:immich_mobile/services/family_account.service.dart';
 import 'package:immich_mobile/providers/background_sync.provider.dart';
 import 'package:immich_mobile/providers/feature_message.provider.dart';
 import 'package:immich_mobile/providers/gallery_permission.provider.dart';
@@ -76,6 +78,17 @@ class LoginForm extends HookConsumerWidget {
     final warningMessage = useState<String?>(null);
     final loginFormKey = GlobalKey<FormState>();
     final ValueNotifier<String?> serverEndpoint = useState<String?>(null);
+    final familyAccount = useState<FamilyAccountSession?>(null);
+
+    useEffect(() {
+      unawaited(() async {
+        final session = await ref.read(familyAccountServiceProvider).getSession();
+        if (session != null) {
+          familyAccount.value = session;
+        }
+      }());
+      return null;
+    }, []);
 
     Future<void> checkVersionMismatch() async {
       try {
@@ -85,6 +98,54 @@ class LoginForm extends HookConsumerWidget {
         warningMessage.value = getVersionCompatibilityMessage(serverVersion: serverSemVer, appVersion: appSemVer);
       } catch (error) {
         warningMessage.value = 'Error checking version compatibility';
+      }
+    }
+
+    Future<void> loginWithFamilyAccount() async {
+      final session = familyAccount.value;
+      if (session == null) {
+        return;
+      }
+      try {
+        await ref.read(authProvider.notifier).validateServerUrl(session.serverUrl);
+        invalidateAllApiRepositoryProviders(ref);
+        final isSuccess = await ref
+            .read(authProvider.notifier)
+            .saveAuthInfo(accessToken: session.accessToken);
+        if (isSuccess && context.mounted) {
+          await ref.read(galleryPermissionNotifier.notifier).requestGalleryPermission();
+          if (isSyncRemoteDeletionsMode()) {
+            await getManageMediaPermission();
+          }
+          unawaited(handleSyncFlow());
+          if (!context.mounted) {
+            return;
+          }
+          ref.read(websocketProvider.notifier).connect();
+          unawaited(ref.read(featureMessageServiceProvider).markSeen());
+          if (!context.mounted) {
+            return;
+          }
+          unawaited(context.router.replaceAll([const TabShellRoute()]));
+        } else if (context.mounted) {
+          ImmichToast.show(
+            context: context,
+            msg: context.t.login_form_failed_login,
+            toastType: ToastType.error,
+            gravity: ToastGravity.TOP,
+          );
+        }
+      } catch (error, stack) {
+        log.severe('Error logging in with family account: $error', stack);
+        if (!context.mounted) {
+          return;
+        }
+        ImmichToast.show(
+          context: context,
+          msg: context.t.login_form_failed_login,
+          toastType: ToastType.error,
+          gravity: ToastGravity.TOP,
+        );
       }
     }
 
@@ -463,6 +524,14 @@ class LoginForm extends HookConsumerWidget {
                     onSubmit: (_) => form.submit(),
                   ),
                 ),
+                if (familyAccount.value != null)
+                  ImmichForm(
+                    onSubmit: loginWithFamilyAccount,
+                    submitText:
+                        '${context.t.login_form_family_account} ${familyAccount.value!.userName ?? ''}'.trim(),
+                    submitIcon: Icons.account_circle_rounded,
+                    builder: (context, _) => const SizedBox.shrink(),
+                  ),
                 ImmichTextButton(
                   labelText: context.t.settings,
                   icon: Icons.settings,

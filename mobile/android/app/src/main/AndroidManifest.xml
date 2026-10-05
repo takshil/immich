@@ -189,7 +189,10 @@
   </application>
 
 
+  <uses-permission android:name="famille.store.permission.IMMICH_SESSION" />
+
   <queries>
+    <package android:name="famille.store" />
     <intent>
       <action android:name="android.intent.action.VIEW" />
       <data android:scheme="https" />

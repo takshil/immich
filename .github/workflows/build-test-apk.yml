@@ -43,15 +43,6 @@ jobs:
       - name: Generate code (openapi, pigeon, i18n, drift)
         run: mise run codegen
 
-      - name: Generate shared test keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore "$PWD/android/key.jks" \
-            -storetype PKCS12 \
-            -alias familytest \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass familystore -keypass familystore \
-            -dname "CN=Family Suite Test Key, OU=Family Suite, O=Family Suite, C=FR"
 
       - name: Build release APK signed with the shared test key
         working-directory: ./mobile

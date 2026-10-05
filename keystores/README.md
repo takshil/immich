@@ -1,14 +1,14 @@
-# Keystore de test partagé
+# Keystore de test partage
 
-Les workflows « Build test APK (shared signature) » génèrent un keystore de
-**test uniquement** avec `keytool` à partir des paramètres fixes ci-dessous,
-identiques dans les repos family-store et immich. Les deux APK produits sont
-donc signés avec la même clé, ce qui permet au ContentProvider de Family Store
-(permission `signature`) de partager la session Immich avec l'app Immich.
+`family-test.keystore` (PKCS12) est une cle de **test uniquement**, commitee
+ici et identique dans les repos `family-store` et `immich`. Les APK produits
+par les workflows « Build test APK (shared signature) » sont donc signes avec
+la meme cle, ce qui permet au ContentProvider de Family Store (permission
+`signature`) de partager la session Immich avec l'app Immich Famille.
 
-- Distinguished Name : `CN=Family Suite Test Key, OU=Family Suite, O=Family Suite, C=FR`
 - Alias : `familytest`
 - Passwords (store + key) : `familystore`
-- Algorithme : RSA 2048, validité 10000 jours, format PKCS12
+- Empreinte SHA-256 du certificat :
+  `ED:FA:FE:8B:BD:9C:7D:D7:70:B9:9E:39:5E:C9:AE:5D:66:91:FE:EC:71:26:55:C7:24:C2:62:6F:A3:6E:DC:E5`
 
 Ne jamais utiliser pour un build de production.

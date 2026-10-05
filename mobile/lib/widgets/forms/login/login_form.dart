@@ -101,54 +101,6 @@ class LoginForm extends HookConsumerWidget {
       }
     }
 
-    Future<void> loginWithFamilyAccount() async {
-      final session = familyAccount.value;
-      if (session == null) {
-        return;
-      }
-      try {
-        await ref.read(authProvider.notifier).validateServerUrl(session.serverUrl);
-        invalidateAllApiRepositoryProviders(ref);
-        final isSuccess = await ref
-            .read(authProvider.notifier)
-            .saveAuthInfo(accessToken: session.accessToken);
-        if (isSuccess && context.mounted) {
-          await ref.read(galleryPermissionNotifier.notifier).requestGalleryPermission();
-          if (isSyncRemoteDeletionsMode()) {
-            await getManageMediaPermission();
-          }
-          unawaited(handleSyncFlow());
-          if (!context.mounted) {
-            return;
-          }
-          ref.read(websocketProvider.notifier).connect();
-          unawaited(ref.read(featureMessageServiceProvider).markSeen());
-          if (!context.mounted) {
-            return;
-          }
-          unawaited(context.router.replaceAll([const TabShellRoute()]));
-        } else if (context.mounted) {
-          ImmichToast.show(
-            context: context,
-            msg: context.t.login_form_failed_login,
-            toastType: ToastType.error,
-            gravity: ToastGravity.TOP,
-          );
-        }
-      } catch (error, stack) {
-        log.severe('Error logging in with family account: $error', stack);
-        if (!context.mounted) {
-          return;
-        }
-        ImmichToast.show(
-          context: context,
-          msg: context.t.login_form_failed_login,
-          toastType: ToastType.error,
-          gravity: ToastGravity.TOP,
-        );
-      }
-    }
-
     /// Fetch the server login credential and enables oAuth login if necessary
     /// Returns true if successful, false otherwise
     Future<void> getServerAuthSettings() async {
@@ -309,6 +261,54 @@ class LoginForm extends HookConsumerWidget {
     }
 
     bool isSyncRemoteDeletionsMode() => Platform.isAndroid && Store.get(StoreKey.manageLocalMediaAndroid, false);
+    Future<void> loginWithFamilyAccount() async {
+      final session = familyAccount.value;
+      if (session == null) {
+        return;
+      }
+      try {
+        await ref.read(authProvider.notifier).validateServerUrl(session.serverUrl);
+        invalidateAllApiRepositoryProviders(ref);
+        final isSuccess = await ref
+            .read(authProvider.notifier)
+            .saveAuthInfo(accessToken: session.accessToken);
+        if (isSuccess && context.mounted) {
+          await ref.read(galleryPermissionNotifier.notifier).requestGalleryPermission();
+          if (isSyncRemoteDeletionsMode()) {
+            await getManageMediaPermission();
+          }
+          unawaited(handleSyncFlow());
+          if (!context.mounted) {
+            return;
+          }
+          ref.read(websocketProvider.notifier).connect();
+          unawaited(ref.read(featureMessageServiceProvider).markSeen());
+          if (!context.mounted) {
+            return;
+          }
+          unawaited(context.router.replaceAll([const TabShellRoute()]));
+        } else if (context.mounted) {
+          ImmichToast.show(
+            context: context,
+            msg: context.t.login_form_failed_login,
+            toastType: ToastType.error,
+            gravity: ToastGravity.TOP,
+          );
+        }
+      } catch (error, stack) {
+        log.severe('Error logging in with family account: $error', stack);
+        if (!context.mounted) {
+          return;
+        }
+        ImmichToast.show(
+          context: context,
+          msg: context.t.login_form_failed_login,
+          toastType: ToastType.error,
+          gravity: ToastGravity.TOP,
+        );
+      }
+    }
+
 
     Future<void> login() async {
       TextInput.finishAutofillContext();

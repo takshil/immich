@@ -1,0 +1,73 @@
+name: Build test APK (shared signature)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'keystores/**'
+      - '.github/workflows/build-test-apk.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'keystores/**'
+  workflow_dispatch:
+
+concurrency:
+  group: test-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Mise
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          cache: true
+          working-directory: mobile
+
+      - name: Install dependencies
+        run: mise run install:ci
+
+      - name: Generate code (openapi, pigeon, i18n, drift)
+        run: mise run codegen
+
+
+      - name: Copy shared test keystore
+        run: cp "${{ github.workspace }}/keystores/family-test.keystore" android/key.jks
+
+      - name: Build release APK signed with the shared test key
+        working-directory: ./mobile
+        run: flutter build apk --release
+        env:
+          ALIAS: familytest
+          ANDROID_KEY_PASSWORD: familystore
+          ANDROID_STORE_PASSWORD: familystore
+          FAMILY_SUITE_BUILD: "1"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=1g"
+          ORG_GRADLE_PROJECT_orgGradleJvmArgs: "-Xmx8g"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: immich-test-apk
+          path: mobile/build/app/outputs/flutter-apk/*.apk

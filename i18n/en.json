@@ -1355,6 +1355,7 @@
   "login_form_failed_get_oauth_server_config": "Error logging using OAuth, check server URL",
   "login_form_failed_get_oauth_server_disable": "OAuth feature is not available on this server",
   "login_form_failed_login": "Error logging you in, check server URL, email and password",
+  "login_form_family_account": "Continue as",
   "login_form_handshake_exception": "There was an Handshake Exception with the server. Enable self-signed certificate support in the settings if you are using a self-signed certificate.",
   "login_form_password_hint": "password",
   "login_form_server_empty": "Enter a server URL",

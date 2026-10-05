@@ -2336,7 +2336,7 @@
   "wrong_pin_code": "ভুল পিন কোড",
   "x_of_total": "{x}/{total}",
   "year": "বছর",
-  "years_ago": "{years, plural, one {#বছর} other {#বছর}} আগে",
+  "years_ago": "{years, plural, one {# বছর} other {# বছর}} আগে",
   "yes": "হ্যাঁ",
   "you": "আপনি",
   "you_dont_have_any_shared_links": "আপনার কোনো শেয়ার করা লিঙ্ক নেই (You don't have any shared links)",

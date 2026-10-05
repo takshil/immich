@@ -3,10 +3,10 @@ name: Build test APK (shared signature)
 on:
   pull_request:
     paths:
-      - "mobile/**"
-      - "open-api/**"
-      - "i18n/**"
-      - "keystores/**"
+      - 'mobile/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'keystores/**'
   workflow_dispatch:
 
 concurrency:
@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: zulu
-          java-version: "21"
+          java-version: '21'
 
       - name: Setup Mise
         uses: jdx/mise-action@v2

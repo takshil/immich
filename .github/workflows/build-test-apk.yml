@@ -1,6 +1,14 @@
 name: Build test APK (shared signature)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'open-api/**'
+      - 'i18n/**'
+      - 'keystores/**'
+      - '.github/workflows/build-test-apk.yml'
   pull_request:
     paths:
       - 'mobile/**'
